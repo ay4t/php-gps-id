@@ -52,23 +52,11 @@ class Client
     {
         $this->config = new Auth();
 
-        $this->username     = $this->config->username;
-        $this->password     = $this->config->password;
-        if( $token ){
-            
+        $this->username     = ($this->config->username) ? $this->config->username : '';
+        $this->password     = ($this->config->password) ? $this->config->password : '';
+        if( $token ){            
             $this->token = $token;
-
-        } else {
-
-            // jika terdapat file Config/token.txt maka ambil token dari file tersebut
-            if( file_exists( __DIR__ . '/Config/token.txt' ) ){
-                $token_file     = fopen( __DIR__ . '/Config/token.txt', 'r' );
-                $this->token    = fread( $token_file, filesize( __DIR__ . '/Config/token.txt' ) );
-            } else {
-                $this->login();
-            }
-        }
-
+        } 
     }
 
     /**
@@ -85,6 +73,15 @@ class Client
         $url                = $this->base_url . $this->endpoint;
 
         if( $this->auth ){
+
+            // jika terdapat file Config/token.txt maka ambil token dari file tersebut
+            if( file_exists( __DIR__ . '/Config/token.txt' ) ){
+                $token_file     = fopen( __DIR__ . '/Config/token.txt', 'r' );
+                $this->token    = fread( $token_file, filesize( __DIR__ . '/Config/token.txt' ) );
+            } else {
+                $login_data     = $this->login( $this->username, $this->password );
+            }
+
             $params['headers'] = [
                 'Authorization' => 'Bearer ' . $this->token,
             ];
@@ -129,9 +126,11 @@ class Client
             // simpan data token kedalam file Config/token.txt
             $token_file = fopen( __DIR__ . '/Config/token.txt', 'w' );
             fwrite( $token_file, $this->token );
-        } 
+        } else {
+            throw new \Exception("Invalid login credentials");  
+        }
 
-        return $result;
+        return $this;
     }
 
     /**
