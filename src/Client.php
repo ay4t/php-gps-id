@@ -50,6 +50,9 @@ class Client
 
     public function __construct( string $token = null )
     {
+        // set date timezone to Asia/Jakarta
+        date_default_timezone_set('Asia/Jakarta');
+
         $this->config = new Auth();
 
         $this->username     = ($this->config->username) ? $this->config->username : '';
@@ -77,7 +80,16 @@ class Client
             // jika terdapat file Config/token.txt maka ambil token dari file tersebut
             if( file_exists( __DIR__ . '/Config/token.txt' ) ){
                 $token_file     = fopen( __DIR__ . '/Config/token.txt', 'r' );
-                $this->token    = fread( $token_file, filesize( __DIR__ . '/Config/token.txt' ) );
+                $token_file_data    = fread( $token_file, filesize( __DIR__ . '/Config/token.txt' ) );
+
+                $token_file_data    = json_decode( $token_file_data, true );
+                $this->token        = $token_file_data['token'];
+
+                // jika token sudah expired maka lakukan login ulang
+                if( strtotime( $token_file_data['expired'] ) < strtotime( date('Y-m-d H:i:s') ) ){
+                    $login_data     = $this->login( $this->username, $this->password );
+                }
+
             } else {
                 $login_data     = $this->login( $this->username, $this->password );
             }
@@ -123,9 +135,18 @@ class Client
         if( ! empty($result['data']['token']) ){
             $this->token = $result['data']['token'];
 
+            // expired token dalam 2 jam
+            $expired_time   = date('Y-m-d H:i:s', strtotime('+2 hours'));
+
+            // write json token data to file
+            $write_json_data    = [
+                'token'     => $this->token,
+                'expired'   => $expired_time
+            ];
+
             // simpan data token kedalam file Config/token.txt
             $token_file = fopen( __DIR__ . '/Config/token.txt', 'w' );
-            fwrite( $token_file, $this->token );
+            fwrite( $token_file, json_encode( $write_json_data ) );
         } else {
             throw new \Exception("Invalid login credentials");  
         }
